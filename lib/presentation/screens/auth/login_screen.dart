@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../bloc/auth/auth_bloc.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,6 +13,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
   bool _isLogin = true;
 
   @override
@@ -41,7 +43,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    const primaryDark = Color(0xFF624C54);
+    const lightBeige = Color(0xFFF3EFEA);
+
     return Scaffold(
+      backgroundColor: Colors.white,
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthError) {
@@ -59,133 +65,244 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         },
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF624C54), Color(0xFFEFEAE4)],
-            ),
-          ),
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 32.0),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Image.asset(
-                            'assets/images/app_logo.jpg',
-                            fit: BoxFit.contain,
-                          ),
+                      const SizedBox(height: 60),
+                      // Logo
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          'assets/images/app_logo.jpg',
+                          width: 120,
+                          height: 120,
+                          fit: BoxFit.cover,
                         ),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'BirdWatch Pro',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF624C54),
+                        style: GoogleFonts.poppins(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          color: primaryDark,
                         ),
                       ),
-                      const SizedBox(height: 32),
-                      TextField(
-                        controller: _emailController,
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          prefixIcon: const Icon(Icons.email_outlined),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      const SizedBox(height: 60),
+                      
+                      // Email Field
+                      Container(
+                        decoration: BoxDecoration(
+                          color: lightBeige,
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _passwordController,
-                        decoration: InputDecoration(
-                          labelText: 'Mot de passe',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        obscureText: true,
-                      ),
-                      const SizedBox(height: 32),
-                      BlocBuilder<AuthBloc, AuthState>(
-                        builder: (context, state) {
-                          if (state is AuthLoading) {
-                            return const CircularProgressIndicator();
-                          }
-                          return SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _submit,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF624C54),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: Text(_isLogin ? 'SE CONNECTER' : 'S\'INSCRIRE'),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: () => setState(() => _isLogin = !_isLogin),
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF624C54),
-                        ),
-                        child: Text(_isLogin
-                          ? 'Pas encore de compte ? Créer un compte'
-                          : 'Déjà un compte ? Se connecter'),
-                      ),
-                      const SizedBox(height: 16),
-                      const Row(
-                        children: [
-                          Expanded(child: Divider()),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
-                            child: Text('OU', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                        child: TextField(
+                          controller: _emailController,
+                          style: GoogleFonts.poppins(color: primaryDark),
+                          decoration: InputDecoration(
+                            hintText: 'Adresse e-mail',
+                            hintStyle: GoogleFonts.poppins(color: primaryDark.withOpacity(0.6)),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                           ),
-                          Expanded(child: Divider()),
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Password Field
+                      Container(
+                        decoration: BoxDecoration(
+                          color: lightBeige,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: TextField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          style: GoogleFonts.poppins(color: primaryDark),
+                          decoration: InputDecoration(
+                            hintText: 'Mot de passe',
+                            hintStyle: GoogleFonts.poppins(color: primaryDark.withOpacity(0.6)),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                color: primaryDark.withOpacity(0.6),
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscurePassword = !_obscurePassword;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Forgot password and Login button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _isLogin
+                              ? TextButton(
+                                  onPressed: () {},
+                                  child: Text(
+                                    'Mot de passe oublié ?',
+                                    style: GoogleFonts.poppins(
+                                      color: primaryDark.withOpacity(0.8),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                          BlocBuilder<AuthBloc, AuthState>(
+                            builder: (context, state) {
+                              if (state is AuthLoading) {
+                                return const CircularProgressIndicator(valueColor: AlwaysStoppedAnimation(primaryDark));
+                              }
+                              return ElevatedButton(
+                                onPressed: _submit,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryDark,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(30),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: Text(
+                                  _isLogin ? 'Se connecter' : 'S\'inscrire',
+                                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                                ),
+                              );
+                            },
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: () {
-                            context.read<AuthBloc>().add(
-                              const SignInRequested('demo@birdwatch.pro', 'demo123'),
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFF624C54)),
-                            foregroundColor: const Color(0xFF624C54),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      const SizedBox(height: 40),
+                      
+                      // Divider
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: primaryDark.withOpacity(0.2))),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'Ou se connecter avec :',
+                              style: GoogleFonts.poppins(
+                                color: primaryDark.withOpacity(0.6),
+                                fontSize: 12,
+                              ),
+                            ),
                           ),
-                          child: const Text('MODE DÉMO / GUEST', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Expanded(child: Divider(color: primaryDark.withOpacity(0.2))),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                      
+                      // Social Icons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildSocialIcon('G+'),
+                          const SizedBox(width: 24),
+                          _buildSocialIcon('f'),
+                        ],
+                      ),
+                      
+                      // Mode demo bouton (Optionnel pour tests rapides)
+                      const SizedBox(height: 24),
+                      TextButton(
+                        onPressed: () {
+                          context.read<AuthBloc>().add(
+                            const SignInRequested('demo@birdwatch.pro', 'demo123'),
+                          );
+                        },
+                        child: Text(
+                          'Mode Démo',
+                          style: GoogleFonts.poppins(
+                            color: primaryDark.withOpacity(0.5),
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
                       ),
+                      
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
               ),
-            ),
+              
+              // Bottom Section
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                decoration: const BoxDecoration(
+                  color: lightBeige,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      _isLogin ? 'Première fois ? ' : 'Déjà un compte ? ',
+                      style: GoogleFonts.poppins(
+                        color: primaryDark.withOpacity(0.8),
+                        fontSize: 14,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isLogin = !_isLogin;
+                        });
+                      },
+                      child: Text(
+                        _isLogin ? 'Inscrivez-vous !' : 'Se connecter',
+                        style: GoogleFonts.poppins(
+                          color: primaryDark,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocialIcon(String text) {
+    const primaryDark = Color(0xFF624C54);
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: primaryDark.withOpacity(0.2)),
+      ),
+      child: Center(
+        child: Text(
+          text,
+          style: GoogleFonts.poppins(
+            color: primaryDark,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
         ),
       ),

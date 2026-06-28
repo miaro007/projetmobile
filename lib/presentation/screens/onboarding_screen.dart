@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -17,34 +17,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   final List<_OnboardingData> _pages = [
     _OnboardingData(
-      imageUrl:
-          'https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Dog_Breeds.jpg/1200px-Dog_Breeds.jpg',
-      localAsset: false,
+      imageUrl: 'assets/images/onboarding1.jpg',
+      localAsset: true,
       icon: Icons.filter_alt_outlined,
       title: 'Identifiez',
       subtitle: 'les oiseaux par filtres',
-      description:
-          'Appliquez des filtres simples pour identifier rapidement l\'oiseau que vous observez dans la nature.',
+      description: 'Appliquez des filtres simples pour identifier rapidement l\'oiseau que vous observez dans la nature.',
     ),
     _OnboardingData(
-      imageUrl:
-          'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Bubo_scandiacus_2_%28Gus_Byberg%29.jpg/1200px-Bubo_scandiacus_2_%28Gus_Byberg%29.jpg',
-      localAsset: false,
+      imageUrl: 'assets/images/onboarding2.jpg',
+      localAsset: true,
       icon: Icons.menu_book_outlined,
       title: 'Consultez',
       subtitle: 'le guide des espèces',
-      description:
-          'Parcourez toutes les espèces d\'oiseaux en les recherchant par nom ou par famille.',
+      description: 'Parcourez toutes les espèces d\'oiseaux en les recherchant par nom ou par famille.',
     ),
     _OnboardingData(
-      imageUrl:
-          'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Ardea_alba_-_Casmerodius_albus_-_great_egret_at_Thodupuzha.jpg/1200px-Ardea_alba_-_Casmerodius_albus_-_great_egret_at_Thodupuzha.jpg',
-      localAsset: false,
+      imageUrl: 'assets/images/onboarding3.webp',
+      localAsset: true,
       icon: Icons.bookmark_border_outlined,
       title: 'Créez',
       subtitle: 'vos listes d\'observations',
-      description:
-          'Créez et éditez des listes personnalisées pour enregistrer et partager vos observations.',
+      description: 'Créez et éditez des listes personnalisées pour enregistrer et partager vos observations.',
     ),
   ];
 
@@ -173,25 +167,34 @@ class _OnboardingPage extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.network(
-          data.imageUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: const Color(0xFF624C54),
-            child: const Icon(Icons.image_not_supported, size: 80, color: Color(0xFFF6C69D)),
-          ),
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return Container(
-              color: const Color(0xFF624C54),
-              child: const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF6C69D)),
+        data.localAsset 
+            ? Image.asset(
+                data.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: const Color(0xFF624C54),
+                  child: const Icon(Icons.image_not_supported, size: 80, color: Color(0xFFF6C69D)),
                 ),
+              )
+            : Image.network(
+                data.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: const Color(0xFF624C54),
+                  child: const Icon(Icons.image_not_supported, size: 80, color: Color(0xFFF6C69D)),
+                ),
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    color: const Color(0xFF624C54),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF6C69D)),
+                      ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
         Positioned.fill(
           child: DecoratedBox(
             decoration: BoxDecoration(

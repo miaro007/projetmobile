@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/models/bird.dart';
 import '../../data/services/ai_identification_service.dart';
+import '../../data/services/supabase_storage_service.dart';
 import '../bloc/bird_bloc.dart';
 import '../bloc/bird_event.dart';
 
@@ -19,6 +20,7 @@ class AddBirdScreen extends StatefulWidget {
 class _AddBirdScreenState extends State<AddBirdScreen> {
   final _formKey = GlobalKey<FormState>();
   final _aiService = AIIdentificationService();
+  final _storageService = SupabaseStorageService();
   final _picker = ImagePicker();
   
   late TextEditingController _nameController;
@@ -29,6 +31,7 @@ class _AddBirdScreenState extends State<AddBirdScreen> {
   
   XFile? _selectedImage;
   bool _isIdentifying = false;
+  bool _isSaving = false;
 
   String _selectedGender = 'Indéterminé';
   String _selectedAge = 'Adulte';
@@ -90,27 +93,47 @@ class _AddBirdScreenState extends State<AddBirdScreen> {
     }
   }
 
-  void _submitForm() {
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      final newBird = Bird(
-        id: const Uuid().v4(),
-        name: _nameController.text,
-        scientificName: _scientificNameController.text.isEmpty ? 'Inconnu' : _scientificNameController.text,
-        species: 'Espèce',
-        description: _descriptionController.text,
-        imageUrl: _selectedImage?.path ?? 'https://images.unsplash.com/photo-1444464666168-49d633b867ad?q=80&w=1000&auto=format&fit=crop',
-        observedAt: DateTime.now(),
-        location: _locationController.text,
-        count: int.tryParse(_countController.text) ?? 1,
-        gender: _selectedGender,
-        age: _selectedAge,
-        behavior: _selectedBehavior,
-        habitat: _selectedHabitat,
-        status: _selectedStatus,
-      );
+      setState(() => _isSaving = true);
+      try {
+        String imageUrl = 'https://images.unsplash.com/photo-1444464666168-49d633b867ad?q=80&w=1000&auto=format&fit=crop';
+        
+        if (_selectedImage != null) {
+          final uploadedUrl = await _storageService.uploadPhoto(_selectedImage!);
+          if (uploadedUrl != null) {
+            imageUrl = uploadedUrl;
+          }
+        }
 
-      context.read<BirdBloc>().add(AddBird(newBird));
-      Navigator.pop(context);
+        final newBird = Bird(
+          id: const Uuid().v4(),
+          name: _nameController.text,
+          scientificName: _scientificNameController.text.isEmpty ? 'Inconnu' : _scientificNameController.text,
+          species: 'Espèce',
+          description: _descriptionController.text,
+          imageUrl: imageUrl,
+          observedAt: DateTime.now(),
+          location: _locationController.text,
+          count: int.tryParse(_countController.text) ?? 1,
+          gender: _selectedGender,
+          age: _selectedAge,
+          behavior: _selectedBehavior,
+          habitat: _selectedHabitat,
+          status: _selectedStatus,
+        );
+
+        context.read<BirdBloc>().add(AddBird(newBird));
+        if (mounted) Navigator.pop(context);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erreur lors de l\'enregistrement'), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
+      }
     }
   }
 
@@ -120,7 +143,9 @@ class _AddBirdScreenState extends State<AddBirdScreen> {
       appBar: AppBar(
         title: const Text('Nouvelle Observation'),
         actions: [
-          TextButton(onPressed: _submitForm, child: const Text('ENREGISTRER', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
+          _isSaving 
+              ? const Padding(padding: EdgeInsets.all(16.0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+              : TextButton(onPressed: _submitForm, child: const Text('ENREGISTRER', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
         ],
       ),
       body: SingleChildScrollView(

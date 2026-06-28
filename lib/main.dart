@@ -6,6 +6,7 @@ import 'package:projet_flutter/data/repositories/species_repository_impl.dart';
 import 'package:projet_flutter/data/services/ebird_service.dart';
 import 'package:projet_flutter/data/services/wikipedia_service.dart';
 import 'package:projet_flutter/data/services/nuthatch_service.dart';
+import 'package:projet_flutter/data/services/xeno_canto_service.dart';
 import 'package:projet_flutter/presentation/bloc/bird_bloc.dart';
 import 'package:projet_flutter/presentation/bloc/bird_event.dart';
 import 'package:projet_flutter/presentation/bloc/species/species_bloc.dart';
@@ -32,9 +33,10 @@ Future<void> main() async {
 
 
   // Services
-  final eBirdService = EBirdService(apiKey: 'YOUR_EBIRD_API_KEY');
+  final eBirdService = EBirdService(apiKey: 'dclbd7b85jqh');
   final wikipediaService = WikipediaService();
   final nuthatchService = NuthatchService();
+  final xenoCantoService = XenoCantoService(apiKey: '3067f311b2ea555a29ebfc5ddc579a48f079be4a');
 
   // Repositories
   final birdRepository = SupabaseBirdRepository();
@@ -42,6 +44,7 @@ Future<void> main() async {
     eBirdService: eBirdService,
     wikipediaService: wikipediaService,
     nuthatchService: nuthatchService,
+    xenoCantoService: xenoCantoService,
   );
 
   runApp(

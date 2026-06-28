@@ -19,10 +19,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   final List<Widget> _screens = [
     const HomeScreen(),
-    const SpeciesListScreen(), // Guía
-    const SizedBox(), // Placeholder for Identificar (Index 2)
-    const BirdListScreen(),    // Listas
-    const ProfileScreen(),     // Notas
+    const SpeciesListScreen(), // Guide
+    const SizedBox(), // Placeholder for Identifier (Index 2)
+    const BirdListScreen(),    // Listes
+    const ProfileScreen(),     // Notes
   ];
 
   void _onItemTapped(int index) {
@@ -41,65 +41,59 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEFEAE4),
+      backgroundColor: Colors.white,
       body: IndexedStack(
         index: _selectedIndex,
         children: _screens,
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFFEFEAE4),
-          border: Border(
-            top: BorderSide(
-              color: Colors.grey.withOpacity(0.2),
-              width: 1,
-            ),
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildNavItem(0, Icons.home_outlined, Icons.home, 'Inicio'),
-                _buildNavItem(1, Icons.menu_book_outlined, Icons.menu_book, 'Guía'),
-                _buildNavItem(2, FontAwesomeIcons.binoculars, FontAwesomeIcons.binoculars, 'Identificar', isSpecial: true),
-                _buildNavItem(3, Icons.bookmark_border, Icons.bookmark, 'Listas'),
-                _buildNavItem(4, Icons.format_list_bulleted, Icons.format_list_bulleted, 'Notas'),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData icon, IconData activeIcon, String label, {bool isSpecial = false}) {
-    final isSelected = _selectedIndex == index && !isSpecial;
-    final color = isSelected || isSpecial ? const Color(0xFF624C54) : Colors.grey[500];
-    
-    return GestureDetector(
-      onTap: () => _onItemTapped(index),
-      behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isSelected ? activeIcon : icon,
-            color: color,
-            size: isSpecial ? 22 : 26, 
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 10,
+      bottomNavigationBar: NavigationBarTheme(
+        data: NavigationBarThemeData(
+          backgroundColor: const Color(0xFFEFEAE4),
+          indicatorColor: const Color(0xFFDCD2CB), 
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            final isSelected = states.contains(WidgetState.selected);
+            return GoogleFonts.poppins(
+              fontSize: 11,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              color: color,
+              color: const Color(0xFF624C54),
+            );
+          }),
+          iconTheme: WidgetStateProperty.resolveWith((states) {
+            return const IconThemeData(
+              color: Color(0xFF624C54),
+              size: 26,
+            );
+          }),
+        ),
+        child: NavigationBar(
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: _onItemTapped,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Accueil',
             ),
-          ),
-        ],
+            NavigationDestination(
+              icon: Icon(Icons.menu_book_outlined),
+              selectedIcon: Icon(Icons.menu_book),
+              label: 'Guide',
+            ),
+            NavigationDestination(
+              icon: Icon(FontAwesomeIcons.binoculars),
+              label: 'Identifier',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.bookmark_border),
+              selectedIcon: Icon(Icons.bookmark),
+              label: 'Listes',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.format_list_bulleted),
+              label: 'Notes',
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -5,16 +5,19 @@ import '../../domain/repositories/species_repository.dart';
 import '../services/ebird_service.dart';
 import '../services/wikipedia_service.dart';
 import '../services/nuthatch_service.dart';
+import '../services/xeno_canto_service.dart';
 
 class SpeciesRepositoryImpl implements SpeciesRepository {
   final EBirdService eBirdService;
   final WikipediaService wikipediaService;
   final NuthatchService nuthatchService;
+  final XenoCantoService xenoCantoService;
 
   SpeciesRepositoryImpl({
     required this.eBirdService,
     required this.wikipediaService,
     required this.nuthatchService,
+    required this.xenoCantoService,
   });
 
   @override
@@ -48,6 +51,7 @@ class SpeciesRepositoryImpl implements SpeciesRepository {
       for (int i = 0; i < scientificNames.length; i++) {
         if (query.isEmpty || names[i].toLowerCase().contains(query.toLowerCase())) {
           final wikiData = await wikipediaService.getBirdDetails(scientificNames[i]);
+          final audioUrl = await xenoCantoService.getAudioUrl(scientificNames[i]) ?? '';
           
           results.add(Species(
             id: 'api_$i',
@@ -57,7 +61,7 @@ class SpeciesRepositoryImpl implements SpeciesRepository {
             order: 'Passeriformes',
             description: wikiData['description'] ?? '',
             imageUrls: [wikiData['imageUrl'] ?? ''],
-            audioUrl: '',
+            audioUrl: audioUrl,
             size: '--',
             weight: '--',
             plumage: 'Voir description',
