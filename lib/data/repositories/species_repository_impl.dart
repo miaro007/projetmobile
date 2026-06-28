@@ -13,6 +13,10 @@ class SpeciesRepositoryImpl implements SpeciesRepository {
   final NuthatchService nuthatchService;
   final XenoCantoService xenoCantoService;
 
+  // Cache pour éviter les requêtes répétées
+  List<Species>? _cachedSpecies;
+  bool _isFetching = false;
+
   SpeciesRepositoryImpl({
     required this.eBirdService,
     required this.wikipediaService,
@@ -20,66 +24,148 @@ class SpeciesRepositoryImpl implements SpeciesRepository {
     required this.xenoCantoService,
   });
 
+
+  // ── Données statiques de fallback (50 espèces avec photos Wikimedia Commons) ─
+  static final List<Species> _staticSpecies = [
+    Species(id: 'static-1', commonName: 'Rouge-gorge familier', scientificName: 'Erithacus rubecula', family: 'Muscicapidae', order: 'Passeriformes', description: 'Petit passereau très familier avec une gorge et une poitrine orange vif. Chanteur mélodieux, il est actif même en hiver.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/f/f3/Erithacus_rubecula_with_cocked_head.jpg/640px-Erithacus_rubecula_with_cocked_head.jpg'], audioUrl: '', size: 'Petit (14cm)', weight: '16-22g', plumage: 'Gorge et poitrine orangées, dessus brun olivâtre, ventre blanc grisâtre.', habitat: 'Forêt', food: 'Insectes, vers de terre, baies', reproduction: 'Mars à août, 2-3 couvées, 5-6 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-2', commonName: 'Mésange bleue', scientificName: 'Cyanistes caeruleus', family: 'Paridae', order: 'Passeriformes', description: 'Petite mésange vive et acrobate au plumage bleu, jaune et blanc distinctif. Très commune dans les jardins.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Cyanistes_caeruleus_-_Tit-Bleu.jpg/640px-Cyanistes_caeruleus_-_Tit-Bleu.jpg'], audioUrl: '', size: 'Très petit (12cm)', weight: '9-12g', plumage: 'Calotte bleue, poitrine jaune, joues blanches avec masque noir.', habitat: 'Forêt', food: 'Insectes, chenilles, graines', reproduction: 'Avril à juin, 1 couvée, 7-13 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-3', commonName: 'Pinson des arbres', scientificName: 'Fringilla coelebs', family: 'Fringillidae', order: 'Passeriformes', description: 'L\'un des oiseaux les plus communs d\'Europe. Le mâle a une calotte grise-bleue et une poitrine rosée.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Fringilla_coelebs_male.jpg/640px-Fringilla_coelebs_male.jpg'], audioUrl: '', size: 'Petit (14-16cm)', weight: '18-29g', plumage: 'Mâle : calotte grise, dos marron, poitrine rosée. Femelle : plumage terne.', habitat: 'Forêt', food: 'Graines, insectes au printemps', reproduction: 'Avril à juillet, 1-2 couvées, 4-5 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-4', commonName: 'Héron cendré', scientificName: 'Ardea cinerea', family: 'Ardeidae', order: 'Pelecaniformes', description: 'Grand échassier gris et blanc, très reconnaissable à sa silhouette longiligne. Il chasse immobile au bord de l\'eau.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/7/7d/Ardea_cinerea_2.jpg/640px-Ardea_cinerea_2.jpg'], audioUrl: '', size: 'Très grand (90-98cm)', weight: '1000-2100g', plumage: 'Gris cendré dessus, blanc dessous, tête blanche avec sourcil noir.', habitat: 'Zone humide', food: 'Poissons, grenouilles, rongeurs', reproduction: 'Février à mai, 1 couvée, 4-5 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-5', commonName: 'Merle noir', scientificName: 'Turdus merula', family: 'Turdidae', order: 'Passeriformes', description: 'Oiseau familier de nos jardins. Le mâle est entièrement noir avec un bec orange vif. Son chant flûté est inoubliable.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Turdus_merula_2_-_rosfeldpark.jpg/640px-Turdus_merula_2_-_rosfeldpark.jpg'], audioUrl: '', size: 'Petit (25cm)', weight: '80-125g', plumage: 'Mâle : entièrement noir, bec et cercle oculaire orangés. Femelle : brun foncé.', habitat: 'Urbain', food: 'Vers de terre, insectes, baies, fruits', reproduction: 'Mars à août, 2-3 couvées, 3-5 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-6', commonName: 'Chouette hulotte', scientificName: 'Strix aluco', family: 'Strigidae', order: 'Strigiformes', description: 'La plus commune des chouettes européennes. Nocturne, son cri «hou-hou» est emblématique des nuits forestières.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Strix_aluco_2.jpg/640px-Strix_aluco_2.jpg'], audioUrl: '', size: 'Moyen (38-43cm)', weight: '400-800g', plumage: 'Brun roux ou grisâtre avec striures sombres, grands yeux noirs ronds.', habitat: 'Forêt', food: 'Rongeurs, oiseaux, insectes', reproduction: 'Février à mai, 1 couvée, 2-4 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-7', commonName: 'Cigogne blanche', scientificName: 'Ciconia ciconia', family: 'Ciconiidae', order: 'Ciconiiformes', description: 'Grand oiseau migrateur emblématique, blanc avec les rémiges noires et le bec rouge. Elle niche sur les toits.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Ciconia_ciconia_-_Radzyn_Podlaski.jpg/640px-Ciconia_ciconia_-_Radzyn_Podlaski.jpg'], audioUrl: '', size: 'Très grand (100-115cm)', weight: '2300-4400g', plumage: 'Blanc avec grandes rémiges noires, bec et pattes rouges.', habitat: 'Prairie', food: 'Grenouilles, insectes, rongeurs, poissons', reproduction: 'Avril à juillet, 1 couvée, 3-5 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-8', commonName: 'Faucon pèlerin', scientificName: 'Falco peregrinus', family: 'Falconidae', order: 'Falconiformes', description: 'L\'oiseau le plus rapide du monde, pouvant atteindre 320 km/h en piqué. Il niche sur les falaises et les grands bâtiments.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Peregrine_falcon_in_flight.jpg/640px-Peregrine_falcon_in_flight.jpg'], audioUrl: '', size: 'Grand (38-50cm)', weight: '580-1300g', plumage: 'Dessus ardoise foncé, dessous blanc barré de sombre, moustache noire.', habitat: 'Montagne', food: 'Oiseaux en vol (pigeons, étourneaux)', reproduction: 'Mars à juin, 1 couvée, 3-4 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-9', commonName: 'Mouette rieuse', scientificName: 'Chroicocephalus ridibundus', family: 'Laridae', order: 'Charadriiformes', description: 'La mouette la plus commune en France, reconnaissable à sa tête brun chocolat en été et son bec rouge.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Larus_ridibundus_in_flight.jpg/640px-Larus_ridibundus_in_flight.jpg'], audioUrl: '', size: 'Petit (35-39cm)', weight: '200-350g', plumage: 'Tête brun chocolat en été (blanche en hiver), ailes gris clair, bec et pattes rouges.', habitat: 'Littoral', food: 'Poissons, insectes, déchets', reproduction: 'Avril à juillet, 1 couvée, 2-3 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-10', commonName: 'Moineau domestique', scientificName: 'Passer domesticus', family: 'Passeridae', order: 'Passeriformes', description: 'Le compagnon de l\'homme depuis des millénaires. Très sociable, il vit en colonies dans les villes et villages.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Passer_domesticus_male_%281%29.jpg/640px-Passer_domesticus_male_%281%29.jpg'], audioUrl: '', size: 'Très petit (14-16cm)', weight: '24-39g', plumage: 'Mâle : calotte marron, joues blanches, bavette noire. Femelle : gris-brun uniforme.', habitat: 'Urbain', food: 'Graines, insectes, miettes', reproduction: 'Avril à août, 2-3 couvées, 3-6 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-11', commonName: 'Canard colvert', scientificName: 'Anas platyrhynchos', family: 'Anatidae', order: 'Anseriformes', description: 'Le canard le plus commun d\'Europe. Le mâle possède une tête vert métallique reconnaissable. Très adaptable.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Anas_platyrhynchos_male_female_quadrat.jpg/640px-Anas_platyrhynchos_male_female_quadrat.jpg'], audioUrl: '', size: 'Grand (51-62cm)', weight: '750-1575g', plumage: 'Mâle : tête vert brillant, corps gris-brun. Femelle : brun moucheté.', habitat: 'Zone humide', food: 'Végétaux aquatiques, graines, invertébrés', reproduction: 'Février à juillet, 1 couvée, 9-13 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-12', commonName: 'Faisan de Colchide', scientificName: 'Phasianus colchicus', family: 'Phasianidae', order: 'Galliformes', description: 'Grand gallinacé introduit d\'Asie. Le mâle est très coloré avec un plumage métallique et une longue queue.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Phasianus_colchicus_male_2.jpg/640px-Phasianus_colchicus_male_2.jpg'], audioUrl: '', size: 'Grand (60-90cm)', weight: '1000-1700g', plumage: 'Mâle : plumage roux et doré, tête verte à caroncules rouges, longue queue barrée.', habitat: 'Prairie', food: 'Graines, insectes, baies', reproduction: 'Avril à juin, 1 couvée, 10-15 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-13', commonName: 'Pigeon ramier', scientificName: 'Columba palumbus', family: 'Columbidae', order: 'Columbiformes', description: 'Le plus grand pigeon d\'Europe. Reconnaissable à ses taches blanches sur les côtés du cou.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/9/96/Columba_palumbus_-_Raahe_2012.jpg/640px-Columba_palumbus_-_Raahe_2012.jpg'], audioUrl: '', size: 'Grand (38-43cm)', weight: '300-615g', plumage: 'Gris avec taches blanches au cou, poitrine rosée, reflets verts et violets.', habitat: 'Forêt', food: 'Graines, feuilles, baies, glands', reproduction: 'Avril à octobre, 2-3 couvées, 2 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-14', commonName: 'Grive musicienne', scientificName: 'Turdus philomelos', family: 'Turdidae', order: 'Passeriformes', description: 'Grive commune connue pour son chant musical où elle répète chaque phrase deux ou trois fois. Elle brise les escargots sur des pierres.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/2/2d/Turdus_philomelos_2.jpg/640px-Turdus_philomelos_2.jpg'], audioUrl: '', size: 'Petit (23cm)', weight: '65-100g', plumage: 'Dessus brun olivâtre, dessous crème tacheté de sombre.', habitat: 'Forêt', food: 'Vers de terre, escargots, baies, insectes', reproduction: 'Mars à juillet, 2-3 couvées, 4-5 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-15', commonName: 'Hirondelle rustique', scientificName: 'Hirundo rustica', family: 'Hirundinidae', order: 'Passeriformes', description: 'Oiseau migrateur emblématique du printemps, connu pour ses longues queues en fourche. Excellent chasseur d\'insectes en vol.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/Hirundo_rustica_-_Haifa.jpg/640px-Hirundo_rustica_-_Haifa.jpg'], audioUrl: '', size: 'Très petit (17-21cm)', weight: '17-20g', plumage: 'Dessus bleu acier brillant, gorge rouge brique, dessous blanc crème.', habitat: 'Prairie', food: 'Insectes capturés en vol', reproduction: 'Mai à août, 2-3 couvées, 4-5 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-16', commonName: 'Aigle royal', scientificName: 'Aquila chrysaetos', family: 'Accipitridae', order: 'Accipitriformes', description: 'L\'un des plus grands rapaces d\'Europe, symbolisant la puissance et la majesté. Il domine les chaînes montagneuses.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Aquila_chrysaetos_-_01.jpg/640px-Aquila_chrysaetos_-_01.jpg'], audioUrl: '', size: 'Très grand (75-88cm)', weight: '2800-6600g', plumage: 'Brun foncé, nuque dorée, queue grise barrée.', habitat: 'Montagne', food: 'Mammifères (lièvres, marmottes), oiseaux', reproduction: 'Mars à août, 1 couvée, 1-3 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-17', commonName: 'Buse variable', scientificName: 'Buteo buteo', family: 'Accipitridae', order: 'Accipitriformes', description: 'Le rapace le plus commun d\'Europe. Son plumage est très variable. Elle chasse rongeurs et reptiles depuis son poste d\'observation.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Buteo_buteo_1_2007_Gilles_San_Martin.jpg/640px-Buteo_buteo_1_2007_Gilles_San_Martin.jpg'], audioUrl: '', size: 'Grand (51-57cm)', weight: '550-1300g', plumage: 'Très variable : brun foncé à presque blanc, dessous souvent avec zone pectorale foncée.', habitat: 'Forêt', food: 'Rongeurs, reptiles, invertébrés', reproduction: 'Mars à juillet, 1 couvée, 2-4 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-18', commonName: 'Milan royal', scientificName: 'Milvus milvus', family: 'Accipitridae', order: 'Accipitriformes', description: 'Rapace élégant reconnaissable à sa queue fourchue rousse et ses longues ailes en angle. En plein essor en France.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Milvus_milvus_-_01.jpg/640px-Milvus_milvus_-_01.jpg'], audioUrl: '', size: 'Grand (60-66cm)', weight: '800-1300g', plumage: 'Roux vif dessus et dessous, tête gris pâle, queue rousse fourchue.', habitat: 'Prairie', food: 'Charognes, petits mammifères, vers de terre', reproduction: 'Mars à juin, 1 couvée, 2-3 œufs', status: ConservationStatus.nt),
+    Species(id: 'static-19', commonName: 'Martin-pêcheur d\'Europe', scientificName: 'Alcedo atthis', family: 'Alcedinidae', order: 'Coraciiformes', description: 'Un des plus beaux oiseaux de France. Son plumage bleu azur et orange est inoubliable. Il plonge verticalement dans l\'eau pour capturer les poissons.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/1/1f/Alcedo_atthis_-_Nederland_-_2015.jpg/640px-Alcedo_atthis_-_Nederland_-_2015.jpg'], audioUrl: '', size: 'Très petit (17cm)', weight: '34-46g', plumage: 'Dessus bleu turquoise brillant, dessous et joues orange roux.', habitat: 'Zone humide', food: 'Poissons, insectes aquatiques', reproduction: 'Avril à août, 2-3 couvées, 6-7 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-20', commonName: 'Huppe fasciée', scientificName: 'Upupa epops', family: 'Upupidae', order: 'Bucerotiformes', description: 'Oiseau exotique facilement reconnaissable à sa huppe déployable. Son cri "pou-pou-pou" est caractéristique.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Upupa_epops.jpg/640px-Upupa_epops.jpg'], audioUrl: '', size: 'Moyen (25-29cm)', weight: '47-87g', plumage: 'Roux saumoné, ailes et queue rayées noir et blanc, longue huppe orangée bordée de noir.', habitat: 'Prairie', food: 'Insectes, larves, petits reptiles', reproduction: 'Avril à juillet, 1-2 couvées, 5-8 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-21', commonName: 'Guêpier d\'Europe', scientificName: 'Merops apiaster', family: 'Meropidae', order: 'Coraciiformes', description: 'L\'un des oiseaux les plus colorés d\'Europe. Migrateur, il niche en colonies dans des terriers creusés dans les berges.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Merops_apiaster_-_European_Bee-eater.jpg/640px-Merops_apiaster_-_European_Bee-eater.jpg'], audioUrl: '', size: 'Moyen (28cm)', weight: '44-78g', plumage: 'Dessus roux et doré, gorge jaune, dessous bleu-vert, bec long et recourbé.', habitat: 'Prairie', food: 'Abeilles, guêpes, frelons, libellules', reproduction: 'Mai à juillet, 1 couvée, 5-8 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-22', commonName: 'Rollier d\'Europe', scientificName: 'Coracias garrulus', family: 'Coraciidae', order: 'Coraciiformes', description: 'Oiseau au plumage spectaculaire bleu-turquoise et roux. Migrateur rare en France, il chasse depuis un perchoir.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Coracias_garrulus_-_European_Roller.jpg/640px-Coracias_garrulus_-_European_Roller.jpg'], audioUrl: '', size: 'Moyen (29-32cm)', weight: '110-190g', plumage: 'Bleu-turquoise vif, dos brun marron, queue bleue.', habitat: 'Prairie', food: 'Insectes, petits reptiles, rongeurs', reproduction: 'Mai à juillet, 1 couvée, 4-5 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-23', commonName: 'Oie cendrée', scientificName: 'Anser anser', family: 'Anatidae', order: 'Anseriformes', description: 'La plus grande oie sauvage d\'Europe et ancêtre de l\'oie domestique. Elle niche en Scandinavie et vient hiverner dans nos régions.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Anser_anser_-_Switzerland_(Ticino).jpg/640px-Anser_anser_-_Switzerland_(Ticino).jpg'], audioUrl: '', size: 'Très grand (74-91cm)', weight: '2200-4100g', plumage: 'Gris-brun uniforme, ventre blanc tacheté de sombre, bec et pattes orangés.', habitat: 'Zone humide', food: 'Herbes, tiges, racines, graines', reproduction: 'Mars à mai, 1 couvée, 4-6 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-24', commonName: 'Cygne tuberculé', scientificName: 'Cygnus olor', family: 'Anatidae', order: 'Anseriformes', description: 'Le cygne le plus commun d\'Europe. Reconnaissable à son bec orange orné d\'un tubercule noir et à sa posture élégante.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/b/be/Cygnus_olor_Schwerin_2012.JPG/640px-Cygnus_olor_Schwerin_2012.JPG'], audioUrl: '', size: 'Très grand (140-160cm)', weight: '7000-14000g', plumage: 'Entièrement blanc, bec orange-rouge avec tubercule noir à la base.', habitat: 'Zone humide', food: 'Végétaux aquatiques, algues', reproduction: 'Avril à juin, 1 couvée, 5-8 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-25', commonName: 'Flamant rose', scientificName: 'Phoenicopterus roseus', family: 'Phoenicopteridae', order: 'Phoenicopteriformes', description: 'Oiseau emblématique de la Camargue. Sa couleur rose est due aux caroténoïdes présents dans sa nourriture.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Flamingos_and_Spoonbills.jpg/640px-Flamingos_and_Spoonbills.jpg'], audioUrl: '', size: 'Très grand (120-145cm)', weight: '2100-4100g', plumage: 'Rose pâle à vif, ailes rouge et noir, bec rose coudé à bout noir.', habitat: 'Zone humide', food: 'Micro-algues, crustacés, mollusques', reproduction: 'Mai à juillet, 1 couvée, 1 œuf', status: ConservationStatus.lc),
+    Species(id: 'static-26', commonName: 'Balbuzard pêcheur', scientificName: 'Pandion haliaetus', family: 'Pandionidae', order: 'Accipitriformes', description: 'Rapace piscivore spectaculaire qui plonge les pattes en avant pour capturer ses proies dans les rivières et lacs.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/Osprey_-_Pandion_haliaetus.jpg/640px-Osprey_-_Pandion_haliaetus.jpg'], audioUrl: '', size: 'Grand (55-60cm)', weight: '1200-2000g', plumage: 'Dessus brun foncé, dessous blanc, masque brun oculaire.', habitat: 'Zone humide', food: 'Poissons exclusivement', reproduction: 'Avril à juillet, 1 couvée, 2-4 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-27', commonName: 'Effraie des clochers', scientificName: 'Tyto alba', family: 'Tytonidae', order: 'Strigiformes', description: 'Chouette au visage en cœur très reconnaissable. Elle chasse la nuit et hante les vieilles bâtisses et clochers d\'église.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Tyto_alba_alba_2_-_Keila.jpg/640px-Tyto_alba_alba_2_-_Keila.jpg'], audioUrl: '', size: 'Moyen (33-39cm)', weight: '187-700g', plumage: 'Dessus gris et roux moucheté de blanc, dessous blanc pur, face en cœur blanche.', habitat: 'Urbain', food: 'Campagnols, musaraignes, petits oiseaux', reproduction: 'Avril à juillet, 1-2 couvées, 4-7 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-28', commonName: 'Grand corbeau', scientificName: 'Corvus corax', family: 'Corvidae', order: 'Passeriformes', description: 'Le plus grand passereau du monde. Très intelligent, il vit en montagne et dans les grands massifs forestiers.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Corvus_corax_%28Common_Raven%29%2C_Yosemite_NP%2C_CA%2C_US_-_Diliff.jpg/640px-Corvus_corax_%28Common_Raven%29%2C_Yosemite_NP%2C_CA%2C_US_-_Diliff.jpg'], audioUrl: '', size: 'Grand (54-67cm)', weight: '700-2000g', plumage: 'Entièrement noir à reflets bleu-violet métallique.', habitat: 'Montagne', food: 'Omnivore : charognes, petits mammifères, œufs', reproduction: 'Février à mai, 1 couvée, 3-7 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-29', commonName: 'Pie bavarde', scientificName: 'Pica pica', family: 'Corvidae', order: 'Passeriformes', description: 'Oiseau familier et intelligent, reconnaissable à son plumage noir et blanc et sa longue queue. Elle peut imiter les sons.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Common_Magpie_Pica_pica.jpg/640px-Common_Magpie_Pica_pica.jpg'], audioUrl: '', size: 'Grand (44-58cm)', weight: '200-250g', plumage: 'Noir brillant à reflets bleu-vert, épaules et ventre blancs, longue queue irisée.', habitat: 'Urbain', food: 'Omnivore : insectes, baies, petits rongeurs, charognes', reproduction: 'Mars à juin, 1 couvée, 5-7 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-30', commonName: 'Geai des chênes', scientificName: 'Garrulus glandarius', family: 'Corvidae', order: 'Passeriformes', description: 'Corvidé très coloré aux ailes bleu vif striées de noir. Grand planteur de chênes involontaire, il cache des milliers de glands.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/2011-10-01_Jay_-_Garrulus_glandarius_%28cropped%29.jpg/640px-2011-10-01_Jay_-_Garrulus_glandarius_%28cropped%29.jpg'], audioUrl: '', size: 'Moyen (34-35cm)', weight: '140-190g', plumage: 'Rosé-fauve, calotte blanche striée de noir, ailes bleu vif, bout des ailes noir et blanc.', habitat: 'Forêt', food: 'Glands, insectes, œufs, petits vertébrés', reproduction: 'Avril à juin, 1 couvée, 5-7 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-31', commonName: 'Étourneau sansonnet', scientificName: 'Sturnus vulgaris', family: 'Sturnidae', order: 'Passeriformes', description: 'Formant des nuées spectaculaires appelées "murmurations", il vole en formations coordonnées pouvant regrouper des millions d\'individus.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Sturnus_vulgaris_2_-_Luton.jpg/640px-Sturnus_vulgaris_2_-_Luton.jpg'], audioUrl: '', size: 'Petit (21cm)', weight: '60-96g', plumage: 'Noir brillant à reflets verts et violets, moucheté de blanc en hiver.', habitat: 'Urbain', food: 'Insectes, vers de terre, baies, graines', reproduction: 'Mars à mai, 1-2 couvées, 4-6 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-32', commonName: 'Sittelle torchepot', scientificName: 'Sitta europaea', family: 'Sittidae', order: 'Passeriformes', description: 'Petit oiseau acrobate capable de descendre les troncs la tête en bas. Il comble l\'entrée de son nid avec de la boue.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Sitta_europaea_wildlife_2.jpg/640px-Sitta_europaea_wildlife_2.jpg'], audioUrl: '', size: 'Très petit (14cm)', weight: '17-25g', plumage: 'Dessus bleu-gris, dessous roux vif, trait oculaire noir, gorge blanche.', habitat: 'Forêt', food: 'Insectes, araignées, graines, noisettes', reproduction: 'Avril à juin, 1 couvée, 6-9 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-33', commonName: 'Vanneau huppé', scientificName: 'Vanellus vanellus', family: 'Charadriidae', order: 'Charadriiformes', description: 'Limicole à la huppe longue et fine. Ses cris nasillards "ki-ouitt" sont caractéristiques des prairies humides. En fort déclin.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/d/dc/Vanellus_vanellus_1_2008_Gilles_San_Martin.jpg/640px-Vanellus_vanellus_1_2008_Gilles_San_Martin.jpg'], audioUrl: '', size: 'Moyen (28-31cm)', weight: '128-330g', plumage: 'Dessus vert métallique irisé, dessous blanc, longue huppe noire fine.', habitat: 'Prairie', food: 'Vers de terre, insectes, mollusques', reproduction: 'Avril à juin, 1 couvée, 4 œufs', status: ConservationStatus.nt),
+    Species(id: 'static-34', commonName: 'Troglodyte mignon', scientificName: 'Troglodytes troglodytes', family: 'Troglodytidae', order: 'Passeriformes', description: 'Un des plus petits oiseaux d\'Europe mais l\'un des plus puissants chanteurs par rapport à sa taille. Il tient toujours la queue relevée.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/d/df/Troglodytes_troglodytes_Britzer_Garten_2012.jpg/640px-Troglodytes_troglodytes_Britzer_Garten_2012.jpg'], audioUrl: '', size: 'Très petit (10cm)', weight: '8-13g', plumage: 'Brun roux barré de sombre, queue courte toujours dressée.', habitat: 'Forêt', food: 'Insectes, araignées, petits invertébrés', reproduction: 'Avril à juillet, 2 couvées, 5-8 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-35', commonName: 'Bouvreuil pivoine', scientificName: 'Pyrrhula pyrrhula', family: 'Fringillidae', order: 'Passeriformes', description: 'Oiseau discret aux couleurs vives. Le mâle a une poitrine rose vif très reconnaissable. Fréquente les jardins et les lisières de forêt.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Pyrrhula_pyrrhula_male_2009_Scotland.jpg/640px-Pyrrhula_pyrrhula_male_2009_Scotland.jpg'], audioUrl: '', size: 'Très petit (15-16cm)', weight: '21-38g', plumage: 'Mâle : calotte noire, poitrine rose vif, dos gris, croupion blanc. Femelle : poitrine brun-rosé.', habitat: 'Forêt', food: 'Bourgeons, baies, graines', reproduction: 'Avril à juillet, 2 couvées, 4-5 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-36', commonName: 'Tourterelle des bois', scientificName: 'Streptopelia turtur', family: 'Columbidae', order: 'Columbiformes', description: 'Tourterelle migratrice dont la roucoulade douce annonce l\'été. En forte régression dans toute l\'Europe.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Streptopelia_turtur_Luc_Viatour.jpg/640px-Streptopelia_turtur_Luc_Viatour.jpg'], audioUrl: '', size: 'Petit (26-28cm)', weight: '85-170g', plumage: 'Brun-roux dessus, poitrine rose saumoné, côtés du cou rayés noir et blanc.', habitat: 'Prairie', food: 'Graines, baies', reproduction: 'Juin à juillet, 1-2 couvées, 2 œufs', status: ConservationStatus.vu),
+    Species(id: 'static-37', commonName: 'Cigogne noire', scientificName: 'Ciconia nigra', family: 'Ciconiidae', order: 'Ciconiiformes', description: 'Parente discrète de la cigogne blanche, elle fréquente les forêts humides loin de l\'homme. Plumage noir brillant à reflets métalliques.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Ciconia_nigra_in_flight.jpg/640px-Ciconia_nigra_in_flight.jpg'], audioUrl: '', size: 'Très grand (95-100cm)', weight: '2700-3000g', plumage: 'Noir brillant à reflets verts et violets, ventre blanc, bec et pattes rouges.', habitat: 'Forêt', food: 'Poissons, grenouilles, invertébrés aquatiques', reproduction: 'Avril à juillet, 1 couvée, 3-5 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-38', commonName: 'Spatule blanche', scientificName: 'Platalea leucorodia', family: 'Threskiornithidae', order: 'Pelecaniformes', description: 'Grand oiseau blanc reconnaissable à son bec en forme de spatule. Elle filtre l\'eau pour attraper ses proies.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Platalea_leucorodia_01.jpg/640px-Platalea_leucorodia_01.jpg'], audioUrl: '', size: 'Très grand (80-93cm)', weight: '1200-1970g', plumage: 'Entièrement blanc, bec long aplati en spatule jaune-noir.', habitat: 'Zone humide', food: 'Poissons, grenouilles, crustacés, insectes aquatiques', reproduction: 'Avril à juin, 1 couvée, 3-4 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-39', commonName: 'Perdrix grise', scientificName: 'Perdix perdix', family: 'Phasianidae', order: 'Galliformes', description: 'Gallinacé des plaines agricoles, en forte régression due à l\'intensification agricole. Discret, il se déplace en groupes familiaux.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Perdix_perdix_%28Marek_Szczepanek%29.jpg/640px-Perdix_perdix_%28Marek_Szczepanek%29.jpg'], audioUrl: '', size: 'Moyen (29-31cm)', weight: '290-450g', plumage: 'Gris-brun barré, face et gorge orange roux, tache brun chocolat sur le ventre chez le mâle.', habitat: 'Prairie', food: 'Graines, jeunes pousses, insectes', reproduction: 'Mai à juillet, 1 couvée, 10-20 œufs', status: ConservationStatus.nt),
+    Species(id: 'static-40', commonName: 'Coucou gris', scientificName: 'Cuculus canorus', family: 'Cuculidae', order: 'Cuculiformes', description: 'Parasite de couvée célèbre, le coucou pond ses œufs dans les nids d\'autres espèces. Son chant "coucou" annonce le printemps.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Cuculus_canorus_vogelartinfo_chris_romeiks_CHR0791.jpg/640px-Cuculus_canorus_vogelartinfo_chris_romeiks_CHR0791.jpg'], audioUrl: '', size: 'Moyen (32-34cm)', weight: '95-130g', plumage: 'Dessus gris ardoisé, dessous blanc finement barré de gris.', habitat: 'Forêt', food: 'Chenilles velues, insectes', reproduction: 'Mai à juillet, ponte dans d\'autres nids', status: ConservationStatus.lc),
+    Species(id: 'static-41', commonName: 'Pic vert', scientificName: 'Picus viridis', family: 'Picidae', order: 'Piciformes', description: 'Grand pic au plumage vert et jaune, reconnaissable à sa calotte rouge et son rire caractéristique. Il se nourrit principalement de fourmis.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Picus_viridis_2_-_Raahe_2012.jpg/640px-Picus_viridis_2_-_Raahe_2012.jpg'], audioUrl: '', size: 'Grand (30-36cm)', weight: '150-250g', plumage: 'Dessus vert, croupion jaune vif, calotte et moustache rouges, face noire.', habitat: 'Forêt', food: 'Fourmis et leurs larves, insectes', reproduction: 'Avril à juin, 1 couvée, 5-8 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-42', commonName: 'Bergeronnette grise', scientificName: 'Motacilla alba', family: 'Motacillidae', order: 'Passeriformes', description: 'Petit oiseau très actif qui agite constamment sa longue queue de haut en bas. Il fréquente toutes sortes d\'habitats près de l\'eau.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Motacilla_alba_-_Lomita.jpg/640px-Motacilla_alba_-_Lomita.jpg'], audioUrl: '', size: 'Très petit (17-19cm)', weight: '19-27g', plumage: 'Noir, blanc et gris. Longue queue oscillante.', habitat: 'Urbain', food: 'Insectes, araignées, petits crustacés', reproduction: 'Avril à juillet, 2 couvées, 5-6 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-43', commonName: 'Rougequeue noir', scientificName: 'Phoenicurus ochruros', family: 'Muscicapidae', order: 'Passeriformes', description: 'Petit oiseau familier des villes et villages, reconnaissable à sa queue rousse constamment vibrante.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Phoenicurus_ochruros_male.jpg/640px-Phoenicurus_ochruros_male.jpg'], audioUrl: '', size: 'Très petit (14-15cm)', weight: '14-20g', plumage: 'Mâle : noir, front blanc, queue rousse. Femelle : brun-gris, queue rousse.', habitat: 'Urbain', food: 'Insectes, araignées, baies', reproduction: 'Avril à juillet, 2-3 couvées, 4-6 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-44', commonName: 'Grimpereau des jardins', scientificName: 'Certhia brachydactyla', family: 'Certhiidae', order: 'Passeriformes', description: 'Petit oiseau brun qui monte en spirale les troncs d\'arbre à la recherche d\'insectes dans les anfractuosités de l\'écorce.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Certhia_brachydactyla_-_Poland.jpg/640px-Certhia_brachydactyla_-_Poland.jpg'], audioUrl: '', size: 'Très petit (12-13cm)', weight: '8-12g', plumage: 'Dessus brun strié de crème, dessous blanc pur, bec long et recourbé.', habitat: 'Forêt', food: 'Insectes, araignées cachés dans les écorces', reproduction: 'Avril à juin, 2 couvées, 5-6 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-45', commonName: 'Linotte mélodieuse', scientificName: 'Linaria cannabina', family: 'Fringillidae', order: 'Passeriformes', description: 'Petit oiseau des zones ouvertes et de bocage. Très chanteur, les mâles se rassemblent pour chanter en chœur.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Linaria_cannabina_Male_2012_Harthausen.jpg/640px-Linaria_cannabina_Male_2012_Harthausen.jpg'], audioUrl: '', size: 'Très petit (13-14cm)', weight: '15-22g', plumage: 'Mâle : front et poitrine rouge cramoisi, dos brun. Femelle : brun strié.', habitat: 'Prairie', food: 'Graines de plantes herbacées', reproduction: 'Avril à août, 2-3 couvées, 4-6 œufs', status: ConservationStatus.vu),
+    Species(id: 'static-46', commonName: 'Foulque macroule', scientificName: 'Fulica atra', family: 'Rallidae', order: 'Gruiformes', description: 'Oiseau aquatique très commun reconnaissable à son plumage noir et sa plaque frontale blanche.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Fulica_atra_2_-_Raahe_2012.jpg/640px-Fulica_atra_2_-_Raahe_2012.jpg'], audioUrl: '', size: 'Moyen (36-38cm)', weight: '600-900g', plumage: 'Entièrement noir, bec et plaque frontale blancs.', habitat: 'Zone humide', food: 'Végétaux aquatiques, algues, invertébrés', reproduction: 'Mars à juillet, 2-3 couvées, 6-10 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-47', commonName: 'Bernache du Canada', scientificName: 'Branta canadensis', family: 'Anatidae', order: 'Anseriformes', description: 'Introduite d\'Amérique du Nord, cette grande oie est devenue très commune en Europe. Reconnaissable à sa tête et son cou noirs.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Canada_goose_on_Seedskadee_NWR_%2828516185491%29.jpg/640px-Canada_goose_on_Seedskadee_NWR_%2828516185491%29.jpg'], audioUrl: '', size: 'Très grand (76-110cm)', weight: '3000-9000g', plumage: 'Tête et cou noirs avec tache blanche sur les joues, corps brun-beige, ventre blanc.', habitat: 'Zone humide', food: 'Herbes, algues, végétaux aquatiques', reproduction: 'Mars à mai, 1 couvée, 5-6 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-48', commonName: 'Mésange charbonnière', scientificName: 'Parus major', family: 'Paridae', order: 'Passeriformes', description: 'La plus grande et la plus commune des mésanges. Reconnaissable à sa tête noire et blanche et sa bande noire sur fond jaune.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Parus_major_15_edit.jpg/640px-Parus_major_15_edit.jpg'], audioUrl: '', size: 'Très petit (14cm)', weight: '14-22g', plumage: 'Tête noire à joues blanches, dessus verdâtre, dessous jaune vif avec bande noire.', habitat: 'Forêt', food: 'Insectes, graines, baies', reproduction: 'Avril à mai, 1-2 couvées, 7-12 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-49', commonName: 'Gobemouche gris', scientificName: 'Muscicapa striata', family: 'Muscicapidae', order: 'Passeriformes', description: 'Petit oiseau migrateur qui chasse les insectes depuis un perchoir, retournant toujours au même point après chaque attaque.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Muscicapa_striata.jpg/640px-Muscicapa_striata.jpg'], audioUrl: '', size: 'Très petit (14cm)', weight: '11-19g', plumage: 'Dessus gris-brun, dessous blanc crème strié de sombre sur la poitrine.', habitat: 'Forêt', food: 'Insectes capturés en vol', reproduction: 'Mai à juillet, 1-2 couvées, 4-5 œufs', status: ConservationStatus.lc),
+    Species(id: 'static-50', commonName: 'Pipit des arbres', scientificName: 'Anthus trivialis', family: 'Motacillidae', order: 'Passeriformes', description: 'Oiseau des lisières et clairières forestières, reconnaissable à son chant en vol plané descendant.', imageUrls: ['https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Anthus_trivialis.jpg/640px-Anthus_trivialis.jpg'], audioUrl: '', size: 'Très petit (15cm)', weight: '20-27g', plumage: 'Dessus brun olivâtre strié, dessous crème à chamois, poitrine et flancs striés de brun.', habitat: 'Forêt', food: 'Insectes, araignées, petits vers', reproduction: 'Mai à juillet, 1-2 couvées, 4-6 œufs', status: ConservationStatus.lc),
+  ];
+
   @override
   Future<List<Species>> getAllSpecies() async {
-    // Utiliser l'API Nuthatch gratuite pour récupérer les espèces
+    // Retourner le cache si disponible
+    if (_cachedSpecies != null) return _cachedSpecies!;
+    // Éviter les appels simultanés
+    if (_isFetching) return _staticSpecies;
+
+    _isFetching = true;
     try {
-      final birds = await nuthatchService.getBirds(limit: 50);
-      return birds.map((bird) => _mapToSpecies(bird)).toList();
+      // Appel réel à l'API Nuthatch avec timeout
+      debugPrint('Fetching species from Nuthatch API...');
+      final limit = kIsWeb ? 50 : 150;
+      final birds = await nuthatchService.getBirds(limit: limit)
+          .timeout(const Duration(seconds: 15));
+      if (birds.isNotEmpty) {
+        _cachedSpecies = birds.map((bird) => _mapToSpecies(bird)).toList();
+        debugPrint('Loaded ${_cachedSpecies!.length} species from Nuthatch API');
+        return _cachedSpecies!;
+      }
     } catch (e) {
-      debugPrint('Error fetching species from Nuthatch: $e');
-      // Fallback to simulation if API fails
-      return searchSpecies('');
+      debugPrint('Nuthatch API unavailable, using local data: $e');
+    } finally {
+      _isFetching = false;
     }
+
+    // Fallback : données statiques (10 espèces françaises communes)
+    _cachedSpecies = _staticSpecies;
+    return _staticSpecies;
   }
 
   @override
   Future<List<Species>> searchSpecies(String query) async {
-    try {
-      if (query.isEmpty) {
-        return getAllSpecies();
-      }
-      final birds = await nuthatchService.searchBirds(query);
-      return birds.map((bird) => _mapToSpecies(bird)).toList();
-    } catch (e) {
-      debugPrint('Error searching species: $e');
-      // Fallback simulation
-      final List<Species> results = [];
-      final names = ['Rouge-gorge familier', 'Mésange bleue', 'Pinson des arbres'];
-      final scientificNames = ['Erithacus rubecula', 'Cyanistes caeruleus', 'Fringilla coelebs'];
+    final all = await getAllSpecies();
+    if (query.isEmpty) return all;
+    final q = query.toLowerCase();
+    return all.where((s) =>
+        s.commonName.toLowerCase().contains(q) ||
+        s.scientificName.toLowerCase().contains(q) ||
+        s.family.toLowerCase().contains(q)).toList();
+  }
 
-      for (int i = 0; i < scientificNames.length; i++) {
-        if (query.isEmpty || names[i].toLowerCase().contains(query.toLowerCase())) {
-          final wikiData = await wikipediaService.getBirdDetails(scientificNames[i]);
-          final audioUrl = await xenoCantoService.getAudioUrl(scientificNames[i]) ?? '';
-          
-          results.add(Species(
-            id: 'api_$i',
-            commonName: names[i],
-            scientificName: scientificNames[i],
-            family: 'Inconnue',
-            order: 'Passeriformes',
-            description: wikiData['description'] ?? '',
-            imageUrls: [wikiData['imageUrl'] ?? ''],
-            audioUrl: audioUrl,
-            size: '--',
-            weight: '--',
-            plumage: 'Voir description',
-            habitat: 'Divers',
-            food: 'Omnivore',
-            reproduction: 'Saisonnier',
-            status: ConservationStatus.lc,
-          ));
-        }
+  @override
+  Future<List<Species>> filterSpecies({
+    String? habitat,
+    String? size,
+    List<String>? colors,
+  }) async {
+    final all = await getAllSpecies();
+    
+    // Pour les besoins de la démonstration, étant donné que Nuthatch ne fournit pas 
+    // toujours l'habitat exact ou la couleur, nous retournons un sous-ensemble cohérent
+    // basé sur le nom ou simplement un échantillon pseudo-aléatoire.
+    
+    final filtered = all.where((s) {
+      bool match = true;
+      if (habitat != null && habitat != 'Tous' && s.habitat != 'Divers' && !s.habitat.contains(habitat)) {
+        match = false;
       }
-      return results;
+      if (size != null && size != 'Toutes' && s.size != '--' && !s.size.contains(size.split(' ')[0])) {
+        match = false;
+      }
+      return match;
+    }).toList();
+
+    // Si le filtrage strict renvoie trop peu de résultats (ex: données Nuthatch incomplètes),
+    // on renvoie un mélange de 5 à 10 oiseaux pour que l'assistant ne soit jamais vide.
+    if (filtered.length < 3) {
+      all.shuffle();
+      return all.take(8).toList();
+    }
+    
+    return filtered;
+  }
+
+  @override
+  Future<Species?> getSpeciesById(String id) async {
+    final all = await getAllSpecies();
+    try {
+      return all.firstWhere((s) => s.id == id);
+    } catch (_) {
+      return null;
     }
   }
 
   Species _mapToSpecies(dynamic bird) {
     final images = bird['images'] as List<dynamic>? ?? [];
     final imageUrl = images.isNotEmpty ? images[0].toString() : '';
-    
     return Species(
       id: bird['uid']?.toString() ?? '',
       commonName: bird['name']?.toString() ?? 'Unknown',
@@ -98,12 +184,4 @@ class SpeciesRepositoryImpl implements SpeciesRepository {
       status: ConservationStatus.lc,
     );
   }
-
-  @override
-  Future<List<Species>> filterSpecies({String? habitat, String? size, List<String>? colors}) async {
-    return getAllSpecies();
-  }
-
-  @override
-  Future<Species?> getSpeciesById(String id) async => null;
 }

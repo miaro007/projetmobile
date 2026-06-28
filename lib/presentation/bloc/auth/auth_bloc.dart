@@ -2,6 +2,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:equatable/equatable.dart';
 
+import 'package:flutter/foundation.dart';
+
 // Events
 abstract class AuthEvent extends Equatable {
   const AuthEvent();
@@ -24,6 +26,16 @@ class SignUpRequested extends AuthEvent {
 }
 
 class SignOutRequested extends AuthEvent {}
+
+class SocialSignInRequested extends AuthEvent {
+  final OAuthProvider provider;
+  const SocialSignInRequested(this.provider);
+}
+
+class AuthStateChanged extends AuthEvent {
+  final User? user;
+  const AuthStateChanged(this.user);
+}
 
 // States
 abstract class AuthState extends Equatable {
@@ -66,6 +78,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   AuthBloc() : _supabase = _safeGetSupabase(), super(AuthInitial()) {
+    if (_supabase != null) {
+      _supabase!.auth.onAuthStateChange.listen((data) {
+        add(AuthStateChanged(data.session?.user));
+      });
+    }
+
+    on<AuthStateChanged>((event, emit) {
+      if (event.user != null) {
+        emit(Authenticated(event.user!));
+      } else {
+        emit(const Unauthenticated());
+      }
+    });
+
     on<AuthCheckRequested>((event, emit) {
       if (_supabase == null) {
         emit(const Unauthenticated());
@@ -172,6 +198,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         } catch (_) {}
       }
       emit(const Unauthenticated());
+    });
+
+    on<SocialSignInRequested>((event, emit) async {
+      emit(AuthLoading());
+      if (_supabase == null) {
+        emit(const AuthError("Supabase n'est pas initialisé"));
+        return;
+      }
+      try {
+        await _supabase!.auth.signInWithOAuth(
+          event.provider,
+          redirectTo: kIsWeb ? null : 'com.birdwatch.pro://login-callback',
+        );
+        // L'état sera mis à jour par onAuthStateChange dans main.dart (ou manuellement)
+      } catch (e) {
+        emit(AuthError(_translateError(e.toString())));
+      }
     });
   }
 

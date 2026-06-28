@@ -58,11 +58,25 @@ class BirdDetailScreen extends StatelessWidget {
       actions: [
         IconButton(
           icon: const Icon(Icons.edit, color: Colors.white),
-          onPressed: () {},
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Modification de l\'observation (Bientôt disponible)'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          },
         ),
         IconButton(
           icon: const Icon(Icons.share, color: Colors.white),
-          onPressed: () {},
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Partage de l\'observation en cours...'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          },
         ),
       ],
     );

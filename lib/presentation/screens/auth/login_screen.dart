@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import '../../bloc/auth/auth_bloc.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -86,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'BirdWatch Pro',
+                        'Akany',
                         style: GoogleFonts.poppins(
                           fontSize: 24,
                           fontWeight: FontWeight.w600,
@@ -152,7 +154,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         children: [
                           _isLogin
                               ? TextButton(
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Veuillez contacter le support pour réinitialiser votre mot de passe.'),
+                                        backgroundColor: primaryDark,
+                                        duration: const Duration(seconds: 3),
+                                      ),
+                                    );
+                                  },
                                   child: Text(
                                     'Mot de passe oublié ?',
                                     style: GoogleFonts.poppins(
@@ -212,9 +222,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _buildSocialIcon('G+'),
-                          const SizedBox(width: 24),
-                          _buildSocialIcon('f'),
+                          _buildSocialIcon(
+                            icon: FontAwesomeIcons.google,
+                            color: Colors.red,
+                            onTap: () {
+                              context.read<AuthBloc>().add(const SocialSignInRequested(OAuthProvider.google));
+                            },
+                          ),
                         ],
                       ),
                       
@@ -287,22 +301,22 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildSocialIcon(String text) {
+  Widget _buildSocialIcon({required IconData icon, required Color color, required VoidCallback onTap}) {
     const primaryDark = Color(0xFF624C54);
-    return Container(
-      width: 50,
-      height: 50,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: primaryDark.withOpacity(0.2)),
-      ),
-      child: Center(
-        child: Text(
-          text,
-          style: GoogleFonts.poppins(
-            color: primaryDark,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: primaryDark.withOpacity(0.2)),
+        ),
+        child: Center(
+          child: Icon(
+            icon,
+            color: color,
+            size: 24,
           ),
         ),
       ),

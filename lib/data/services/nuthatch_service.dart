@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 class NuthatchService {
   final String _baseUrl = 'https://api.nuthatch.lastelm.software/v2';
@@ -15,6 +16,10 @@ class NuthatchService {
       url += '&family=$family';
     }
 
+    if (kIsWeb) {
+      url = 'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}';
+    }
+
     final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
@@ -27,9 +32,12 @@ class NuthatchService {
 
   /// Récupère les informations d'un oiseau spécifique par son nom scientifique
   Future<Map<String, dynamic>> getBirdBySciName(String sciName) async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/birds?sciName=$sciName'),
-    );
+    String url = '$_baseUrl/birds?sciName=$sciName';
+    if (kIsWeb) {
+      url = 'https://api.allorigins.win/raw?url=${Uri.encodeComponent(url)}';
+    }
+
+    final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body);

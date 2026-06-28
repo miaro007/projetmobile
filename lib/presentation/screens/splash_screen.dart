@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:animated_text_kit/animated_text_kit.dart';
+
 import 'package:google_fonts/google_fonts.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -51,17 +51,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFF624C54),
-              const Color(0xFF90CDC6),
-              const Color(0xFF624C54).withOpacity(0.8),
-            ],
-          ),
-        ),
+        color: const Color(0xFF624C54), // Bordeaux unique
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -112,60 +102,12 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   children: [
                     Text(
-                      'BirdWatch',
+                      'Akany',
                       style: GoogleFonts.poppins(
                         fontSize: 42,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                         letterSpacing: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    AnimatedTextKit(
-                      animatedTexts: [
-                        TypewriterAnimatedText(
-                          'Pro',
-                          textStyle: GoogleFonts.poppins(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w300,
-                            color: Colors.white.withOpacity(0.9),
-                            letterSpacing: 8,
-                          ),
-                          speed: const Duration(milliseconds: 200),
-                        ),
-                      ],
-                      totalRepeatCount: 1,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 60),
-              AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  return Opacity(
-                    opacity: _fadeAnimation.value,
-                    child: child,
-                  );
-                },
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.white.withOpacity(0.8),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Chargement...',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.white.withOpacity(0.7),
                       ),
                     ),
                   ],

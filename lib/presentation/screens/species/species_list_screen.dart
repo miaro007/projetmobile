@@ -200,7 +200,7 @@ class _SpeciesListScreenState extends State<SpeciesListScreen> {
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final species = list[index];
-                return _SpeciesTile(species: species);
+                return SpeciesTile(species: species);
               },
             );
           }
@@ -211,10 +211,10 @@ class _SpeciesListScreenState extends State<SpeciesListScreen> {
   }
 }
 
-class _SpeciesTile extends StatelessWidget {
+class SpeciesTile extends StatelessWidget {
   final dynamic species;
 
-  const _SpeciesTile({required this.species});
+  const SpeciesTile({super.key, required this.species});
 
   @override
   Widget build(BuildContext context) {
